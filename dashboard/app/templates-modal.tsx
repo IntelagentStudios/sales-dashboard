@@ -236,7 +236,7 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers|Kind re
                     value={templateData.callToAction}
                     onChange={(e) => setTemplateData({...templateData, callToAction: e.target.value})}
                   >
-                    <option value="">No CTA - Just Inform</option>
+                    <option value="">None</option>
                     <option value="Book a Demo">Book a Demo</option>
                     <option value="Start Free Trial">Start Free Trial</option>
                     <option value="Buy Now">Buy Now</option>
