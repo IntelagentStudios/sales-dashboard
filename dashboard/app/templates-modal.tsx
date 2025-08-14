@@ -9,7 +9,9 @@ import {
   Code,
   FileText,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Upload,
+  Wand2
 } from "lucide-react";
 
 interface TemplateModalProps {
@@ -30,6 +32,8 @@ export function TemplateModal({
   setTemplates 
 }: TemplateModalProps) {
   const [currentStep, setCurrentStep] = useState<'basic' | 'design' | 'preview'>('basic');
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importedEmail, setImportedEmail] = useState('');
   
   const [templateData, setTemplateData] = useState({
     name: editingTemplate?.name || '',
@@ -46,6 +50,53 @@ export function TemplateModal({
     brandColors: editingTemplate?.brandColors || { primary: '#000000', secondary: '#666666' },
     logo: editingTemplate?.logo || ''
   });
+
+  const handleImportEmail = () => {
+    // Extract patterns from the pasted email
+    const lines = importedEmail.split('\n');
+    
+    // Extract greeting style
+    const greetingMatch = importedEmail.match(/^(Hi|Hello|Dear|Hey)\s+(\[?\w+\]?)/m);
+    
+    // Extract signature
+    const signatureStart = importedEmail.lastIndexOf('\n\n');
+    const signature = signatureStart > -1 ? importedEmail.substring(signatureStart).trim() : '';
+    
+    // Extract any "Best regards", "Sincerely", etc.
+    const closingMatch = importedEmail.match(/(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n/i);
+    
+    // Extract potential company name from signature
+    const companyMatch = signature.match(/(?:^|\n)([A-Z][A-Za-z\s&]+(?:Inc|LLC|Ltd|Corporation|Corp|Co|Company))/);
+    
+    // Build a smart template structure
+    const smartTemplate = `Hi {{recipientName}},
+
+{{personalizedIntro}}
+
+${templateData.productService || '{{productDescription}}'}
+
+{{valueProps}}
+
+{{callToAction}}
+
+${closingMatch ? closingMatch[1] : 'Best regards'},
+{{senderName}}
+${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n/i, '').trim()}`;
+
+    // Update template with extracted style
+    setTemplateData({
+      ...templateData,
+      customHTML: smartTemplate,
+      emailDesign: 'custom',
+      tone: greetingMatch && greetingMatch[1].toLowerCase() === 'hey' ? 'friendly' : 'professional'
+    });
+    
+    setShowImportDialog(false);
+    setImportedEmail('');
+    
+    // Move to design step to show the imported template
+    setCurrentStep('design');
+  };
 
   const handleSaveTemplate = () => {
     const template = {
@@ -130,6 +181,18 @@ export function TemplateModal({
           {/* Basic Info Step */}
           {currentStep === 'basic' && (
             <div className="space-y-4">
+              {/* Import Email Button */}
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowImportDialog(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import from Existing Email
+                </Button>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Template Name *</label>
@@ -477,6 +540,80 @@ export function TemplateModal({
           </div>
         </CardContent>
       </Card>
+
+      {/* Import Email Dialog */}
+      {showImportDialog && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Import Email Style</CardTitle>
+                <CardDescription>
+                  Paste an existing email to automatically extract its style and structure
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setShowImportDialog(false);
+                  setImportedEmail('');
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Paste Your Email</label>
+                <textarea
+                  className="w-full px-3 py-2 bg-background border rounded-md text-sm font-mono"
+                  rows={12}
+                  placeholder="Copy and paste an email you've sent before. Include everything from greeting to signature.
+
+Example:
+Hi John,
+
+I hope this email finds you well. I wanted to reach out because...
+
+[Your message content]
+
+Best regards,
+Sarah Smith
+Sales Director
+Acme Corporation
+sarah@acme.com
+(555) 123-4567"
+                  value={importedEmail}
+                  onChange={(e) => setImportedEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  The system will extract your greeting style, closing, signature format, and overall structure.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowImportDialog(false);
+                    setImportedEmail('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleImportEmail}
+                  disabled={!importedEmail.trim()}
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Extract Style
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
