@@ -63,15 +63,65 @@ class ApiClient {
     });
   }
 
+  // Template Management
+  async getTemplates() {
+    return this.request('/api/templates');
+  }
+
+  async getTemplate(id: string) {
+    return this.request(`/api/templates/${id}`);
+  }
+
+  async createTemplate(data: Record<string, unknown>) {
+    return this.request('/api/templates', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateTemplate(id: string, data: Record<string, unknown>) {
+    return this.request(`/api/templates/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteTemplate(id: string) {
+    return this.request(`/api/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Campaign Management
   async getCampaigns() {
     return this.request('/api/campaigns');
+  }
+
+  async getCampaign(id: string) {
+    return this.request(`/api/campaigns/${id}`);
   }
 
   async createCampaign(data: Record<string, unknown>) {
     return this.request('/api/campaigns', {
       method: 'POST',
       body: data,
+    });
+  }
+
+  async updateCampaignStatus(id: string, status: string) {
+    return this.request(`/api/campaigns/${id}/status`, {
+      method: 'PATCH',
+      body: { status },
+    });
+  }
+
+  async getCampaignStats(id: string) {
+    return this.request(`/api/campaigns/${id}/stats`);
+  }
+
+  async deleteCampaign(id: string) {
+    return this.request(`/api/campaigns/${id}`, {
+      method: 'DELETE',
     });
   }
 

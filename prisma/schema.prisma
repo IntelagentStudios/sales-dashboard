@@ -163,6 +163,9 @@ model Campaign {
   id                    String      @id @default(uuid())
   name                  String
   description           String?
+  templateId            String?     @map("template_id")
+  searchCriteria        String?     @map("search_criteria")
+  searchMethod          String?     @map("search_method")
   campaignType          String      @default("cold_outreach") @map("campaign_type")
   industryTarget        String?     @map("industry_target")
   companySizeTarget     String?     @map("company_size_target")
@@ -177,6 +180,10 @@ model Campaign {
   dailySendLimit        Int         @default(100) @map("daily_send_limit")
   totalSends            Int         @default(0) @map("total_sends")
   active                Boolean     @default(true)
+  status                String      @default("discovering")
+  leadsFound            Int         @default(0) @map("leads_found")
+  emailsSent            Int         @default(0) @map("emails_sent")
+  responseRate          Float       @default(0) @map("response_rate")
   startDate             DateTime?   @map("start_date")
   endDate               DateTime?   @map("end_date")
   performanceMetrics    Json        @default("{}") @map("performance_metrics")
@@ -189,6 +196,7 @@ model Campaign {
 
   @@index([active])
   @@index([industryTarget])
+  @@index([status])
   @@map("campaigns")
   @@schema("sales_agent")
 }
@@ -348,6 +356,30 @@ model EmailTemplate {
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
   @@map("email_templates")
+  @@schema("sales_agent")
+}
+
+model OutreachTemplate {
+  id                   String      @id @default(uuid())
+  name                 String
+  description          String?
+  productService       String      @map("product_service")
+  painPoints           String[]    @map("pain_points")
+  valueProps           String[]    @map("value_props")
+  callToAction         String      @map("call_to_action")
+  pricing              String?
+  successStories       String?     @map("success_stories")
+  tone                 String      @default("professional")
+  emailDesign          String      @default("plain") @map("email_design")
+  customHTML           String?     @map("custom_html")
+  emailExamples        String[]    @map("email_examples")
+  brandColors          Json?       @map("brand_colors")
+  logo                 String?
+  active               Boolean     @default(true)
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  @@map("outreach_templates")
   @@schema("sales_agent")
 }
 

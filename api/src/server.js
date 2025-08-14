@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import templatesRouter from './routes/templates.js';
+import campaignsRouter from './routes/campaigns.js';
 
 // Load environment variables
 dotenv.config();
@@ -11,6 +13,10 @@ const PORT = process.env.PORT || 3000;
 // Basic middleware
 app.use(cors());
 app.use(express.json());
+
+// API Routes
+app.use('/api/templates', templatesRouter);
+app.use('/api/campaigns', campaignsRouter);
 
 // Simple health check endpoint
 app.get('/health', (req, res) => {
