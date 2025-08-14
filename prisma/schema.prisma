@@ -1,0 +1,486 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "sales_agent"]
+}
+
+// ==================== PUBLIC SCHEMA (Existing tables from Service 1) ====================
+model License {
+  id             String   @id @default(uuid())
+  domain         String   @unique
+  licenseKey     String   @unique @map("license_key")
+  status         String   @default("active")
+  plan           String   @default("free")
+  activatedAt    DateTime @default(now()) @map("activated_at")
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("licenses")
+  @@schema("public")
+}
+
+model ChatbotLog {
+  id          String   @id @default(uuid())
+  domain      String
+  sessionId   String   @map("session_id")
+  message     String
+  response    String?
+  timestamp   DateTime @default(now())
+  metadata    Json?
+
+  @@map("chatbot_logs")
+  @@schema("public")
+}
+
+model SharedItem {
+  id          String   @id @default(uuid())
+  domain      String
+  itemType    String   @map("item_type")
+  itemData    Json     @map("item_data")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("shared_items")
+  @@schema("public")
+}
+
+model DomainLicense {
+  id          String   @id @default(uuid())
+  domain      String   @unique
+  licenseId   String   @map("license_id")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("domain_licenses")
+  @@schema("public")
+}
+
+model SiteKey {
+  id          String   @id @default(uuid())
+  domain      String   @unique
+  apiKey      String   @unique @map("api_key")
+  secretKey   String   @map("secret_key")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("site_keys")
+  @@schema("public")
+}
+
+// ==================== SALES_AGENT SCHEMA (New tables for this service) ====================
+
+model Lead {
+  id                String      @id @default(uuid())
+  companyName       String      @map("company_name")
+  websiteUrl        String      @unique @map("website_url")
+  industry          String?
+  subIndustry       String?     @map("sub_industry")
+  companySize       String?     @map("company_size")
+  employeeRange     String?     @map("employee_range")
+  estimatedRevenue  String?     @map("estimated_revenue")
+  country           String?
+  stateProvince     String?     @map("state_province")
+  city              String?
+  postalCode        String?     @map("postal_code")
+  address           String?
+  phone             String?
+  languageCode      String      @default("en") @map("language_code")
+  timezone          String?
+  hasExistingChat   Boolean     @default(false) @map("has_existing_chat")
+  chatProvider      String?     @map("chat_provider")
+  websiteTechnology Json        @default("{}") @map("website_technology")
+  socialProfiles    Json        @default("{}") @map("social_profiles")
+  companyDescription String?    @map("company_description")
+  foundedYear       Int?        @map("founded_year")
+  businessHours     Json?       @map("business_hours")
+  tags              String[]
+  source            String?
+  sourceUrl         String?     @map("source_url")
+  status            String      @default("new")
+  qualityScore      Int         @default(0) @map("quality_score")
+  lastEnrichedAt    DateTime?   @map("last_enriched_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  contacts          Contact[]
+  outreachHistory   OutreachHistory[]
+  leadScore         LeadScore?
+  companyResearch   CompanyResearch?
+
+  @@index([status])
+  @@index([industry])
+  @@index([qualityScore])
+  @@index([createdAt])
+  @@index([websiteUrl])
+  @@index([hasExistingChat])
+  @@map("leads")
+  @@schema("sales_agent")
+}
+
+model Contact {
+  id               String      @id @default(uuid())
+  leadId           String      @map("lead_id")
+  firstName        String?     @map("first_name")
+  lastName         String?     @map("last_name")
+  fullName         String?     @map("full_name")
+  email            String      @unique
+  emailVerified    Boolean     @default(false) @map("email_verified")
+  emailScore       Float?      @map("email_score")
+  emailProvider    String?     @map("email_provider")
+  position         String?
+  seniorityLevel   String?     @map("seniority_level")
+  department       String?
+  isDecisionMaker  Boolean     @default(false) @map("is_decision_maker")
+  linkedinUrl      String?     @map("linkedin_url")
+  twitterUrl       String?     @map("twitter_url")
+  phone            String?
+  phoneVerified    Boolean     @default(false) @map("phone_verified")
+  personalEmail    Boolean     @default(false) @map("personal_email")
+  roleConfidence   Float?      @map("role_confidence")
+  status           String      @default("active")
+  lastContactedAt  DateTime?   @map("last_contacted_at")
+  totalEmailsSent  Int         @default(0) @map("total_emails_sent")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  lead             Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  outreachHistory  OutreachHistory[]
+
+  @@index([leadId])
+  @@index([email])
+  @@index([isDecisionMaker])
+  @@index([status])
+  @@map("contacts")
+  @@schema("sales_agent")
+}
+
+model Campaign {
+  id                    String      @id @default(uuid())
+  name                  String
+  description           String?
+  campaignType          String      @default("cold_outreach") @map("campaign_type")
+  industryTarget        String?     @map("industry_target")
+  companySizeTarget     String?     @map("company_size_target")
+  geographicTarget      Json?       @map("geographic_target")
+  templateGroup         String?     @map("template_group")
+  subjectLines          Json        @default("[]") @map("subject_lines")
+  emailTemplates        Json        @default("[]") @map("email_templates")
+  followUpSequences     Json        @default("[]") @map("follow_up_sequences")
+  personalizationFields String[]    @map("personalization_fields")
+  abTestingEnabled      Boolean     @default(true) @map("ab_testing_enabled")
+  sendTimeOptimization  Boolean     @default(true) @map("send_time_optimization")
+  dailySendLimit        Int         @default(100) @map("daily_send_limit")
+  totalSends            Int         @default(0) @map("total_sends")
+  active                Boolean     @default(true)
+  startDate             DateTime?   @map("start_date")
+  endDate               DateTime?   @map("end_date")
+  performanceMetrics    Json        @default("{}") @map("performance_metrics")
+  createdBy             String?     @map("created_by")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  outreachHistory       OutreachHistory[]
+  unsubscribes          Unsubscribe[]
+
+  @@index([active])
+  @@index([industryTarget])
+  @@map("campaigns")
+  @@schema("sales_agent")
+}
+
+model OutreachHistory {
+  id                   String      @id @default(uuid())
+  contactId            String      @map("contact_id")
+  leadId               String      @map("lead_id")
+  campaignId           String?     @map("campaign_id")
+  emailAccountId       String?     @map("email_account_id")
+  messageId            String?     @map("message_id")
+  threadId             String?     @map("thread_id")
+  emailType            String      @default("initial") @map("email_type")
+  subjectLine          String?     @map("subject_line")
+  emailBody            String?     @map("email_body")
+  personalizationData  Json?       @map("personalization_data")
+  templateVariant      String?     @map("template_variant")
+  emailSentAt          DateTime?   @map("email_sent_at")
+  emailDeliveredAt     DateTime?   @map("email_delivered_at")
+  emailOpenedAt        DateTime?   @map("email_opened_at")
+  emailClickedAt       DateTime?   @map("email_clicked_at")
+  emailRepliedAt       DateTime?   @map("email_replied_at")
+  emailBouncedAt       DateTime?   @map("email_bounced_at")
+  emailUnsubscribedAt  DateTime?   @map("email_unsubscribed_at")
+  emailMarkedSpamAt    DateTime?   @map("email_marked_spam_at")
+  bounceType           String?     @map("bounce_type")
+  bounceReason         String?     @map("bounce_reason")
+  openCount            Int         @default(0) @map("open_count")
+  clickCount           Int         @default(0) @map("click_count")
+  followUpNumber       Int         @default(0) @map("follow_up_number")
+  emailProvider        String?     @map("email_provider")
+  trackingPixelId      String?     @map("tracking_pixel_id")
+  clickedLinks         Json        @default("[]") @map("clicked_links")
+  replySentiment       String?     @map("reply_sentiment")
+  replyIntent          String?     @map("reply_intent")
+  createdAt            DateTime    @default(now()) @map("created_at")
+
+  contact              Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  lead                 Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaign             Campaign?   @relation(fields: [campaignId], references: [id])
+
+  @@index([contactId])
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([emailSentAt])
+  @@index([messageId])
+  @@map("outreach_history")
+  @@schema("sales_agent")
+}
+
+model LeadScore {
+  id                     String      @id @default(uuid())
+  leadId                 String      @unique @map("lead_id")
+  totalScore             Int         @default(0) @map("total_score")
+  companyScore           Int         @default(0) @map("company_score")
+  websiteScore           Int         @default(0) @map("website_score")
+  engagementScore        Int         @default(0) @map("engagement_score")
+  contactScore           Int         @default(0) @map("contact_score")
+  scoringFactors         Json        @default("{}") @map("scoring_factors")
+  qualified              Boolean     @default(false)
+  qualificationReason    String?     @map("qualification_reason")
+  disqualificationReasons String[]   @map("disqualification_reasons")
+  scoreBreakdown         Json        @default("{}") @map("score_breakdown")
+  lastCalculated         DateTime    @default(now()) @map("last_calculated")
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+
+  lead                   Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([qualified])
+  @@index([totalScore])
+  @@map("lead_scores")
+  @@schema("sales_agent")
+}
+
+model EmailAccount {
+  id                   String      @id @default(uuid())
+  emailAddress         String      @unique @map("email_address")
+  displayName          String?     @map("display_name")
+  provider             String?
+  smtpHost             String?     @map("smtp_host")
+  smtpPort             Int?        @map("smtp_port")
+  smtpSecure           Boolean     @default(true) @map("smtp_secure")
+  smtpUsername         String?     @map("smtp_username")
+  smtpPasswordEncrypted String?    @map("smtp_password_encrypted")
+  imapHost             String?     @map("imap_host")
+  imapPort             Int?        @map("imap_port")
+  imapSecure           Boolean     @default(true) @map("imap_secure")
+  oauthConfig          Json?       @map("oauth_config")
+  dailyLimit           Int         @default(50) @map("daily_limit")
+  hourlyLimit          Int         @default(10) @map("hourly_limit")
+  emailsSentToday      Int         @default(0) @map("emails_sent_today")
+  emailsSentThisHour   Int         @default(0) @map("emails_sent_this_hour")
+  lastResetDate        DateTime?   @map("last_reset_date")
+  reputationScore      Float       @default(100.0) @map("reputation_score")
+  bounceRate           Float       @default(0.0) @map("bounce_rate")
+  complaintRate        Float       @default(0.0) @map("complaint_rate")
+  warmupStatus         String      @default("new") @map("warmup_status")
+  warmupDay            Int         @default(0) @map("warmup_day")
+  active               Boolean     @default(true)
+  lastUsed             DateTime?   @map("last_used")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  @@index([active])
+  @@index([reputationScore])
+  @@map("email_accounts")
+  @@schema("sales_agent")
+}
+
+model CompanyResearch {
+  id                   String      @id @default(uuid())
+  leadId               String      @unique @map("lead_id")
+  researchDate         DateTime    @default(now()) @map("research_date")
+  websiteContent       Json        @default("{}") @map("website_content")
+  recentNews           Json        @default("[]") @map("recent_news")
+  jobPostings          Json        @default("[]") @map("job_postings")
+  customerReviews      Json        @default("{}") @map("customer_reviews")
+  socialMediaActivity  Json        @default("{}") @map("social_media_activity")
+  competitorAnalysis   Json        @default("{}") @map("competitor_analysis")
+  painPoints           String[]    @map("pain_points")
+  growthIndicators     String[]    @map("growth_indicators")
+  uniqueAspects        String[]    @map("unique_aspects")
+  websiteTone          String?     @map("website_tone")
+  estimatedTraffic     Int?        @map("estimated_traffic")
+  trafficSources       Json?       @map("traffic_sources")
+  keyPagesContent      Json?       @map("key_pages_content")
+  seasonalPatterns     Json?       @map("seasonal_patterns")
+  aiInsights           Json        @default("{}") @map("ai_insights")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  lead                 Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([researchDate])
+  @@map("company_research")
+  @@schema("sales_agent")
+}
+
+model EmailTemplate {
+  id                   String      @id @default(uuid())
+  name                 String
+  category             String?
+  industry             String?
+  templateType         String      @default("cold_email") @map("template_type")
+  subjectTemplate      String?     @map("subject_template")
+  bodyTemplate         String?     @map("body_template")
+  personalizationTokens String[]   @map("personalization_tokens")
+  requiredDataPoints   String[]    @map("required_data_points")
+  tone                 String?
+  lengthCategory       String?     @map("length_category")
+  performanceStats     Json        @default("{}") @map("performance_stats")
+  active               Boolean     @default(true)
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  @@map("email_templates")
+  @@schema("sales_agent")
+}
+
+model ApiUsage {
+  id                String      @id @default(uuid())
+  apiName           String      @map("api_name")
+  endpoint          String?
+  requestDate       DateTime    @default(now()) @map("request_date")
+  requestCount      Int         @default(0) @map("request_count")
+  successCount      Int         @default(0) @map("success_count")
+  errorCount        Int         @default(0) @map("error_count")
+  totalCost         Decimal     @default(0) @map("total_cost")
+  avgResponseTime   Int?        @map("avg_response_time")
+  rateLimitHits     Int         @default(0) @map("rate_limit_hits")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@index([apiName, requestDate])
+  @@map("api_usage")
+  @@schema("sales_agent")
+}
+
+model WebhookEvent {
+  id                String      @id @default(uuid())
+  eventType         String      @map("event_type")
+  source            String?
+  payload           Json
+  processed         Boolean     @default(false)
+  processedAt       DateTime?   @map("processed_at")
+  errorMessage      String?     @map("error_message")
+  retryCount        Int         @default(0) @map("retry_count")
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([processed])
+  @@index([createdAt])
+  @@map("webhook_events")
+  @@schema("sales_agent")
+}
+
+model Unsubscribe {
+  id                String      @id @default(uuid())
+  email             String      @unique
+  reason            String?
+  campaignId        String?     @map("campaign_id")
+  unsubscribedAt    DateTime    @default(now()) @map("unsubscribed_at")
+
+  campaign          Campaign?   @relation(fields: [campaignId], references: [id])
+
+  @@index([email])
+  @@map("unsubscribes")
+  @@schema("sales_agent")
+}
+
+model Bounce {
+  id                String      @id @default(uuid())
+  email             String
+  bounceType        String?     @map("bounce_type")
+  bounceSubtype     String?     @map("bounce_subtype")
+  bounceMessage     String?     @map("bounce_message")
+  isPermanent       Boolean     @default(false) @map("is_permanent")
+  retryAfter        DateTime?   @map("retry_after")
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([bounceType])
+  @@map("bounces")
+  @@schema("sales_agent")
+}
+
+model SystemConfig {
+  id                String      @id @default(uuid())
+  configKey         String      @unique @map("config_key")
+  configValue       Json        @map("config_value")
+  description       String?
+  updatedBy         String?     @map("updated_by")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@map("system_config")
+  @@schema("sales_agent")
+}
+
+model ActivityLog {
+  id                String      @id @default(uuid())
+  entityType        String?     @map("entity_type")
+  entityId          String?     @map("entity_id")
+  action            String?
+  details           Json?
+  performedBy       String?     @map("performed_by")
+  ipAddress         String?     @map("ip_address")
+  userAgent         String?     @map("user_agent")
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+  @@schema("sales_agent")
+}
+
+model ApiKey {
+  id                String      @id @default(uuid())
+  keyHash           String      @unique @map("key_hash")
+  name              String?
+  permissions       Json?
+  lastUsed          DateTime?   @map("last_used")
+  usageCount        Int         @default(0) @map("usage_count")
+  active            Boolean     @default(true)
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  @@map("api_keys")
+  @@schema("sales_agent")
+}
+
+model JobQueue {
+  id                String      @id @default(uuid())
+  jobType           String      @map("job_type")
+  priority          Int         @default(5)
+  payload           Json
+  status            String      @default("pending")
+  attempts          Int         @default(0)
+  maxAttempts       Int         @default(3) @map("max_attempts")
+  scheduledFor      DateTime    @default(now()) @map("scheduled_for")
+  startedAt         DateTime?   @map("started_at")
+  completedAt       DateTime?   @map("completed_at")
+  errorMessage      String?     @map("error_message")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([jobType])
+  @@index([scheduledFor])
+  @@index([priority, scheduledFor])
+  @@map("job_queue")
+  @@schema("sales_agent")
+}

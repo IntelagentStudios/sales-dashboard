@@ -1,0 +1,248 @@
+{
+  "name": "Email Response Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sales-agent/email-events"
+      },
+      "id": "webhook-trigger",
+      "name": "Email Event Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.event}}",
+              "operation": "equals",
+              "value2": "email_opened"
+            }
+          ]
+        }
+      },
+      "id": "check-opened",
+      "name": "If Email Opened",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.event}}",
+              "operation": "equals",
+              "value2": "link_clicked"
+            }
+          ]
+        }
+      },
+      "id": "check-clicked",
+      "name": "If Link Clicked",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.event}}",
+              "operation": "equals",
+              "value2": "email_replied"
+            }
+          ]
+        }
+      },
+      "id": "check-replied",
+      "name": "If Email Replied",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outreach_history SET email_opened_at = COALESCE(email_opened_at, NOW()), open_count = open_count + 1 WHERE tracking_pixel_id = '{{$json.data.pixelId}}'"
+      },
+      "id": "update-opened",
+      "name": "Update Open Status",
+      "type": "n8n-nodes-base.postgres",
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outreach_history SET email_clicked_at = COALESCE(email_clicked_at, NOW()), click_count = click_count + 1, clicked_links = clicked_links || '{{JSON.stringify($json.data.clickedUrl)}}' WHERE contact_id = '{{$json.data.contactId}}' AND campaign_id = '{{$json.data.campaignId}}'"
+      },
+      "id": "update-clicked",
+      "name": "Update Click Status",
+      "type": "n8n-nodes-base.postgres",
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/ai/analyze-reply",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({replyText: $json.data.replyText, contactId: $json.data.contactId}) }}"
+      },
+      "id": "analyze-reply",
+      "name": "AI Analyze Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.intent}}",
+              "operation": "equals",
+              "value2": "interested"
+            }
+          ]
+        }
+      },
+      "id": "check-interested",
+      "name": "If Interested",
+      "type": "n8n-nodes-base.if",
+      "position": [850, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET status = 'hot_lead' WHERE id = '{{$json.data.leadId}}'"
+      },
+      "id": "mark-hot-lead",
+      "name": "Mark as Hot Lead",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://your-crm-api.com/deals",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({leadId: $json.data.leadId, contactId: $json.data.contactId, stage: 'qualified', source: 'email_campaign'}) }}"
+      },
+      "id": "create-deal",
+      "name": "Create CRM Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-urgent",
+        "text": "🎉 HOT LEAD ALERT!\n\nCompany: {{$json.data.companyName}}\nContact: {{$json.data.contactName}}\nEmail: {{$json.data.email}}\nReply: {{$json.data.replyText}}\n\nAction required: Follow up immediately!"
+      },
+      "id": "alert-sales",
+      "name": "Alert Sales Team",
+      "type": "n8n-nodes-base.slack",
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.intent}}",
+              "operation": "equals",
+              "value2": "not_interested"
+            }
+          ]
+        }
+      },
+      "id": "check-not-interested",
+      "name": "If Not Interested",
+      "type": "n8n-nodes-base.if",
+      "position": [850, 700]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET status = 'not_interested' WHERE id = '{{$json.data.contactId}}'"
+      },
+      "id": "mark-not-interested",
+      "name": "Mark Not Interested",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1050, 700]
+    },
+    {
+      "parameters": {
+        "amount": 72,
+        "unit": "hours"
+      },
+      "id": "wait-follow-up",
+      "name": "Wait 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "queue": "email-sending",
+        "data": "={{ JSON.stringify({contactId: $json.data.contactId, campaignId: $json.data.campaignId, emailType: 'follow_up', followUpNumber: 1}) }}"
+      },
+      "id": "queue-follow-up",
+      "name": "Queue Follow-up",
+      "type": "n8n-nodes-base.redis",
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {"node": "check-opened", "type": "main", "index": 0},
+          {"node": "check-clicked", "type": "main", "index": 0},
+          {"node": "check-replied", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "check-opened": {
+      "main": [
+        [{"node": "update-opened", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "check-clicked": {
+      "main": [
+        [{"node": "update-clicked", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "check-replied": {
+      "main": [
+        [{"node": "analyze-reply", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "update-opened": {
+      "main": [[{"node": "wait-follow-up", "type": "main", "index": 0}]]
+    },
+    "wait-follow-up": {
+      "main": [[{"node": "queue-follow-up", "type": "main", "index": 0}]]
+    },
+    "analyze-reply": {
+      "main": [[{"node": "check-interested", "type": "main", "index": 0}]]
+    },
+    "check-interested": {
+      "main": [
+        [{"node": "mark-hot-lead", "type": "main", "index": 0}],
+        [{"node": "check-not-interested", "type": "main", "index": 0}]
+      ]
+    },
+    "mark-hot-lead": {
+      "main": [[{"node": "create-deal", "type": "main", "index": 0}]]
+    },
+    "create-deal": {
+      "main": [[{"node": "alert-sales", "type": "main", "index": 0}]]
+    },
+    "check-not-interested": {
+      "main": [
+        [{"node": "mark-not-interested", "type": "main", "index": 0}],
+        []
+      ]
+    }
+  }
+}

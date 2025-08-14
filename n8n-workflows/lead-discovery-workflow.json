@@ -1,0 +1,148 @@
+{
+  "name": "Lead Discovery Multi-Source",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "cronExpression": "0 */6 * * *"
+        }
+      },
+      "id": "cron-discovery",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.cron",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM system_config WHERE config_key = 'discovery_parameters'"
+      },
+      "id": "get-search-params",
+      "name": "Get Search Parameters",
+      "type": "n8n-nodes-base.postgres",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {},
+      "id": "split-sources",
+      "name": "Split Discovery Sources",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/discover/google-maps",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({keyword: $json.keyword, location: $json.location, radius: $json.radius, industry: $json.industry}) }}"
+      },
+      "id": "google-maps-search",
+      "name": "Google Maps Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/discover/directories",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({directory: 'yellowpages', keyword: $json.keyword, location: $json.location}) }}"
+      },
+      "id": "yellowpages-search",
+      "name": "YellowPages Scraping",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/discover/linkedin",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({industry: $json.industry, location: $json.location, companySize: $json.companySize}) }}"
+      },
+      "id": "linkedin-search",
+      "name": "LinkedIn Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 600]
+    },
+    {
+      "parameters": {},
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "const leads = [];\nconst seenUrls = new Set();\n\nfor (const item of items) {\n  if (item.json.leads) {\n    for (const lead of item.json.leads) {\n      if (lead.website_url && !seenUrls.has(lead.website_url)) {\n        seenUrls.add(lead.website_url);\n        leads.push(lead);\n      }\n    }\n  }\n}\n\nreturn [{json: {unique_leads: leads, total: leads.length}}];"
+      },
+      "id": "deduplicate",
+      "name": "Deduplicate Leads",
+      "type": "n8n-nodes-base.function",
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads (company_name, website_url, industry, city, country, source) VALUES {{$json.unique_leads.map(l => `('${l.company_name}', '${l.website_url}', '${l.industry}', '${l.city}', '${l.country}', '${l.source}')`).join(',')}} ON CONFLICT (website_url) DO NOTHING RETURNING id"
+      },
+      "id": "save-leads",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "queue": "lead-enrichment",
+        "data": "={{ JSON.stringify($json.unique_leads.map(l => ({leadId: l.id, priority: 'normal'}))) }}"
+      },
+      "id": "queue-enrichment",
+      "name": "Queue for Enrichment",
+      "type": "n8n-nodes-base.redis",
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-notifications",
+        "text": "Lead discovery completed:\n• Sources checked: 3\n• New leads found: {{$json.total}}\n• Queued for enrichment: {{$json.total}}"
+      },
+      "id": "notify-discovery",
+      "name": "Notify Completion",
+      "type": "n8n-nodes-base.slack",
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "cron-discovery": {
+      "main": [[{"node": "get-search-params", "type": "main", "index": 0}]]
+    },
+    "get-search-params": {
+      "main": [[{"node": "split-sources", "type": "main", "index": 0}]]
+    },
+    "split-sources": {
+      "main": [
+        [{"node": "google-maps-search", "type": "main", "index": 0}],
+        [{"node": "yellowpages-search", "type": "main", "index": 0}],
+        [{"node": "linkedin-search", "type": "main", "index": 0}]
+      ]
+    },
+    "google-maps-search": {
+      "main": [[{"node": "merge-results", "type": "main", "index": 0}]]
+    },
+    "yellowpages-search": {
+      "main": [[{"node": "merge-results", "type": "main", "index": 1}]]
+    },
+    "linkedin-search": {
+      "main": [[{"node": "merge-results", "type": "main", "index": 2}]]
+    },
+    "merge-results": {
+      "main": [[{"node": "deduplicate", "type": "main", "index": 0}]]
+    },
+    "deduplicate": {
+      "main": [[{"node": "save-leads", "type": "main", "index": 0}]]
+    },
+    "save-leads": {
+      "main": [[{"node": "queue-enrichment", "type": "main", "index": 0}]]
+    },
+    "queue-enrichment": {
+      "main": [[{"node": "notify-discovery", "type": "main", "index": 0}]]
+    }
+  }
+}

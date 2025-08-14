@@ -1,0 +1,129 @@
+{
+  "name": "Daily Lead Pipeline Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "cronExpression": "0 6 * * *"
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily 6AM Trigger",
+      "type": "n8n-nodes-base.cron",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/quotas/check",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBasicAuth"
+      },
+      "id": "check-quotas",
+      "name": "Check Daily Quotas",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT l.*, ls.total_score, c.email FROM leads l JOIN lead_scores ls ON l.id = ls.lead_id JOIN contacts c ON l.id = c.lead_id WHERE ls.qualified = true AND l.status = 'qualified' AND NOT EXISTS (SELECT 1 FROM outreach_history oh WHERE oh.lead_id = l.id AND oh.email_sent_at > NOW() - INTERVAL '30 days') ORDER BY ls.total_score DESC LIMIT {{$json.daily_capacity}}"
+      },
+      "id": "fetch-leads",
+      "name": "Fetch Qualified Leads",
+      "type": "n8n-nodes-base.postgres",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 10
+      },
+      "id": "batch-leads",
+      "name": "Batch Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://sales-agent-service:3000/api/email/generate",
+        "method": "POST",
+        "bodyParametersJson": "={{ JSON.stringify({leadId: $json.id, contactId: $json.contact_id, campaignId: $json.campaign_id}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-email",
+      "name": "Generate Personalized Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const timezone = $json.timezone || 'America/New_York';\nconst now = new Date();\nconst localTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));\nconst hour = localTime.getHours();\n\nlet sendTime;\nif (hour < 9) {\n  sendTime = new Date(localTime);\n  sendTime.setHours(9, Math.floor(Math.random() * 60), 0);\n} else if (hour >= 17) {\n  sendTime = new Date(localTime);\n  sendTime.setDate(sendTime.getDate() + 1);\n  sendTime.setHours(9, Math.floor(Math.random() * 60), 0);\n} else {\n  const delayMinutes = Math.floor(Math.random() * 60) + 5;\n  sendTime = new Date(now.getTime() + delayMinutes * 60000);\n}\n\nreturn {\n  ...items[0].json,\n  scheduledSendTime: sendTime.toISOString(),\n  recipientTimezone: timezone\n};"
+      },
+      "id": "schedule-send",
+      "name": "Calculate Send Time",
+      "type": "n8n-nodes-base.function",
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "queue": "email-sending",
+        "data": "={{ JSON.stringify($json) }}",
+        "options": {
+          "delay": "={{ Math.max(0, new Date($json.scheduledSendTime) - new Date()) }}"
+        }
+      },
+      "id": "queue-email",
+      "name": "Queue Email Send",
+      "type": "n8n-nodes-base.redis",
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET status = 'in_campaign' WHERE id = '{{$json.leadId}}'"
+      },
+      "id": "update-lead-status",
+      "name": "Update Lead Status",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-notifications",
+        "text": "Daily lead pipeline completed:\n• Leads processed: {{$json.total_processed}}\n• Emails scheduled: {{$json.emails_scheduled}}\n• Next run: Tomorrow 6 AM"
+      },
+      "id": "slack-notify",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "cron-trigger": {
+      "main": [[{"node": "check-quotas", "type": "main", "index": 0}]]
+    },
+    "check-quotas": {
+      "main": [[{"node": "fetch-leads", "type": "main", "index": 0}]]
+    },
+    "fetch-leads": {
+      "main": [[{"node": "batch-leads", "type": "main", "index": 0}]]
+    },
+    "batch-leads": {
+      "main": [[{"node": "generate-email", "type": "main", "index": 0}]]
+    },
+    "generate-email": {
+      "main": [[{"node": "schedule-send", "type": "main", "index": 0}]]
+    },
+    "schedule-send": {
+      "main": [[{"node": "queue-email", "type": "main", "index": 0}]]
+    },
+    "queue-email": {
+      "main": [[{"node": "update-lead-status", "type": "main", "index": 0}]]
+    },
+    "update-lead-status": {
+      "main": [[{"node": "slack-notify", "type": "main", "index": 0}]]
+    }
+  }
+}
