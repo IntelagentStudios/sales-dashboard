@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TemplateModal } from "./templates-modal";
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
+  const { logout, domain } = useAuth();
   const [activeView, setActiveView] = useState<'campaigns' | 'templates' | 'analytics' | 'settings'>('campaigns');
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -161,7 +163,9 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Sales Agent</h1>
-              <p className="text-sm text-muted-foreground">Find and connect with your ideal customers</p>
+              <p className="text-sm text-muted-foreground">
+                {domain ? `Licensed to ${domain}` : 'Find and connect with your ideal customers'}
+              </p>
             </div>
             <nav className="flex gap-6">
               <button 
@@ -198,6 +202,14 @@ export default function Dashboard() {
               >
                 Settings
               </button>
+              <div className="border-l pl-6 ml-2">
+                <button 
+                  onClick={logout}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
             </nav>
           </div>
         </div>
