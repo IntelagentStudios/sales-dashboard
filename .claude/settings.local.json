@@ -20,7 +20,9 @@
       "Bash(cp:*)",
       "Bash(git remote set-url:*)",
       "Bash(git pull:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(curl:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": [],

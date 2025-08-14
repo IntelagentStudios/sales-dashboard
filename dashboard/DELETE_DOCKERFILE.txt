@@ -1,0 +1,2 @@
+This file exists to force a new commit that ensures Dockerfile is deleted.
+The dashboard should use Nixpacks, not Docker.
