@@ -14,7 +14,8 @@ RUN apk add --no-cache \
 
 # Tell Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    NODE_ENV=production
 
 # Copy package files
 COPY package*.json ./
@@ -44,5 +45,8 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 USER nodejs
 
-# Start the application
-CMD ["node", "api/src/index.js"]
+# Expose port (Railway will override with PORT env var)
+EXPOSE 3000
+
+# Start the application (using simplified server for now)
+CMD ["node", "api/src/server.js"]
