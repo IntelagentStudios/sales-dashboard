@@ -4,13 +4,14 @@
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["npm ci --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npx next build"]
 
 [start]
 cmd = "npm run start"
 
 [variables]
 NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
