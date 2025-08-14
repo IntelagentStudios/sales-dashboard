@@ -54,31 +54,49 @@ app.use(requestLogger);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
-  try {
-    // Check database connection using Prisma
-    await prisma.$queryRaw`SELECT 1`;
-    
-    // Get job queue stats
-    const jobStats = await jobQueue.getStats();
-    
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV,
-      database: 'connected',
-      jobQueue: {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'production',
+    database: 'unknown',
+    jobQueue: null
+  };
+
+  // Check database connection if DATABASE_URL is set
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      health.database = 'connected';
+    } catch (error) {
+      health.database = 'disconnected';
+      health.status = 'degraded';
+      health.dbError = error.message;
+    }
+  } else {
+    health.database = 'not_configured';
+    health.status = 'degraded';
+    health.dbError = 'DATABASE_URL not set';
+  }
+
+  // Check job queue if database is connected
+  if (health.database === 'connected') {
+    try {
+      const jobStats = await jobQueue.getStats();
+      health.jobQueue = {
         isProcessing: jobQueue.isProcessing,
         stats: jobStats
-      }
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'Database connection failed',
-      message: error.message
-    });
+      };
+    } catch (error) {
+      health.jobQueue = { error: error.message };
+    }
   }
+
+  // Return appropriate status code
+  const statusCode = health.status === 'healthy' ? 200 : 
+                     health.status === 'degraded' ? 200 : 503;
+  
+  res.status(statusCode).json(health);
 });
 
 // API Routes - We'll create these next

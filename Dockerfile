@@ -22,10 +22,15 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
+# Copy Prisma schema first for generating client
+COPY prisma ./prisma
+
+# Generate Prisma client
+RUN npx prisma generate
+
 # Copy application code
 COPY api/ ./api/
 COPY scripts/ ./scripts/
-COPY prisma/ ./prisma/
 
 # Create necessary directories
 RUN mkdir -p logs

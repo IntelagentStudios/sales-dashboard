@@ -22,18 +22,24 @@ class JobQueueService {
       maxAttempts = 3
     } = options;
 
-    const job = await prisma.jobQueue.create({
-      data: {
-        jobType,
-        priority,
-        payload,
-        scheduledFor,
-        maxAttempts,
-        status: 'pending'
-      }
-    });
+    try {
+      const job = await prisma.jobQueue.create({
+        data: {
+          jobType,
+          priority,
+          payload,
+          scheduledFor,
+          maxAttempts,
+          status: 'pending'
+        }
+      });
 
-    return job.id;
+      return job.id;
+    } catch (error) {
+      console.error('Failed to add job to queue:', error.message);
+      // Return null if database is not available
+      return null;
+    }
   }
 
   // Process pending jobs
@@ -197,19 +203,24 @@ class JobQueueService {
 
   // Get job statistics
   async getStats() {
-    const stats = await prisma.jobQueue.groupBy({
-      by: ['jobType', 'status'],
-      where: {
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-      },
-      _count: true
-    });
+    try {
+      const stats = await prisma.jobQueue.groupBy({
+        by: ['jobType', 'status'],
+        where: {
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        },
+        _count: true
+      });
 
-    return stats.map(stat => ({
-      job_type: stat.jobType,
-      status: stat.status,
-      count: stat._count
-    }));
+      return stats.map(stat => ({
+        job_type: stat.jobType,
+        status: stat.status,
+        count: stat._count
+      }));
+    } catch (error) {
+      console.error('Failed to get job stats:', error.message);
+      return [];
+    }
   }
 
   // Schedule a recurring job
