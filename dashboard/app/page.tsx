@@ -16,7 +16,6 @@ import {
   Pause,
   Download,
   Eye,
-  Settings,
   BarChart3,
   Sparkles,
   ChevronRight,
@@ -26,7 +25,18 @@ import {
 export default function Dashboard() {
   const [activeView, setActiveView] = useState<'campaigns' | 'analytics' | 'settings'>('campaigns');
   const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
+  interface Campaign {
+    id: number;
+    name: string;
+    searchCriteria: string;
+    status: 'discovering' | 'active' | 'paused';
+    leadsFound: number;
+    emailsSent: number;
+    responseRate: number;
+    createdAt: string;
+  }
+  
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   
   // Real stats starting at 0
   const [stats] = useState({
