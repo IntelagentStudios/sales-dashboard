@@ -34,6 +34,8 @@ export function TemplateModal({
   const [currentStep, setCurrentStep] = useState<'basic' | 'design' | 'preview'>('basic');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importedEmail, setImportedEmail] = useState('');
+  const [emailExamples, setEmailExamples] = useState<string[]>(editingTemplate?.emailExamples || []);
+  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
   
   const [templateData, setTemplateData] = useState({
     name: editingTemplate?.name || '',
@@ -47,29 +49,43 @@ export function TemplateModal({
     tone: editingTemplate?.tone || 'professional',
     emailDesign: editingTemplate?.emailDesign || 'plain',
     customHTML: editingTemplate?.customHTML || '',
+    emailExamples: editingTemplate?.emailExamples || [],
     brandColors: editingTemplate?.brandColors || { primary: '#000000', secondary: '#666666' },
     logo: editingTemplate?.logo || ''
   });
 
   const handleImportEmail = () => {
-    // Extract patterns from the pasted email
-    const lines = importedEmail.split('\n');
+    // Add this email as an example
+    const newExamples = [...emailExamples, importedEmail];
+    setEmailExamples(newExamples);
     
-    // Extract greeting style
-    const greetingMatch = importedEmail.match(/^(Hi|Hello|Dear|Hey)\s+(\[?\w+\]?)/m);
+    // Extract patterns from all examples
+    const allExamples = newExamples.join('\n\n---\n\n');
     
-    // Extract signature
+    // Extract common greeting styles
+    const greetings = new Set<string>();
+    newExamples.forEach(email => {
+      const match = email.match(/^(Hi|Hello|Dear|Hey|Greetings|Good morning|Good afternoon)\s+/m);
+      if (match) greetings.add(match[1]);
+    });
+    
+    // Extract common closings
+    const closings = new Set<string>();
+    newExamples.forEach(email => {
+      const match = email.match(/(Best regards|Sincerely|Thanks|Best|Regards|Cheers|Kind regards|Warm regards),?\s*\n/i);
+      if (match) closings.add(match[1]);
+    });
+    
+    // Extract signature from first example
     const signatureStart = importedEmail.lastIndexOf('\n\n');
     const signature = signatureStart > -1 ? importedEmail.substring(signatureStart).trim() : '';
     
-    // Extract any "Best regards", "Sincerely", etc.
-    const closingMatch = importedEmail.match(/(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n/i);
+    // Determine tone based on greetings
+    const hasInformalGreeting = greetings.has('Hey') || greetings.has('Hi');
+    const tone = hasInformalGreeting ? 'friendly' : 'professional';
     
-    // Extract potential company name from signature
-    const companyMatch = signature.match(/(?:^|\n)([A-Z][A-Za-z\s&]+(?:Inc|LLC|Ltd|Corporation|Corp|Co|Company))/);
-    
-    // Build a smart template structure
-    const smartTemplate = `Hi {{recipientName}},
+    // Build template with variations
+    const smartTemplate = `${Array.from(greetings)[0] || 'Hi'} {{recipientName}},
 
 {{personalizedIntro}}
 
@@ -79,23 +95,24 @@ ${templateData.productService || '{{productDescription}}'}
 
 {{callToAction}}
 
-${closingMatch ? closingMatch[1] : 'Best regards'},
+${Array.from(closings)[0] || 'Best regards'},
 {{senderName}}
-${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n/i, '').trim()}`;
+${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers|Kind regards|Warm regards),?\s*\n/i, '').trim()}`;
 
     // Update template with extracted style
     setTemplateData({
       ...templateData,
       customHTML: smartTemplate,
       emailDesign: 'custom',
-      tone: greetingMatch && greetingMatch[1].toLowerCase() === 'hey' ? 'friendly' : 'professional'
+      emailExamples: newExamples,
+      tone: tone
     });
     
     setShowImportDialog(false);
     setImportedEmail('');
     
-    // Move to design step to show the imported template
-    setCurrentStep('design');
+    // Show success message
+    alert(`Added example ${newExamples.length}. The AI will learn from ${newExamples.length} email example${newExamples.length > 1 ? 's' : ''}.`);
   };
 
   const handleSaveTemplate = () => {
@@ -112,6 +129,7 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n
       tone: templateData.tone,
       emailDesign: templateData.emailDesign,
       customHTML: templateData.customHTML,
+      emailExamples: emailExamples,
       brandColors: templateData.brandColors,
       logo: templateData.logo
     };
@@ -182,14 +200,21 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n
           {currentStep === 'basic' && (
             <div className="space-y-4">
               {/* Import Email Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center">
+                <div>
+                  {emailExamples.length > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {emailExamples.length} email example{emailExamples.length > 1 ? 's' : ''} imported
+                    </span>
+                  )}
+                </div>
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowImportDialog(true)}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Import from Existing Email
+                  {emailExamples.length > 0 ? 'Add Another Example' : 'Import from Existing Email'}
                 </Button>
               </div>
 
@@ -549,7 +574,10 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers),?\s*\n
               <div>
                 <CardTitle>Import Email Style</CardTitle>
                 <CardDescription>
-                  Paste an existing email to automatically extract its style and structure
+                  {emailExamples.length === 0 
+                    ? 'Paste an existing email to automatically extract its style and structure'
+                    : `Add example ${emailExamples.length + 1} - The AI will learn from multiple examples for better personalization`
+                  }
                 </CardDescription>
               </div>
               <Button 
