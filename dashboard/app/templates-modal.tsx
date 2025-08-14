@@ -239,10 +239,9 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers|Kind re
                     <option value="">Select CTA...</option>
                     <option value="Book a Demo">Book a Demo</option>
                     <option value="Start Free Trial">Start Free Trial</option>
-                    <option value="Schedule Consultation">Schedule Consultation</option>
+                    <option value="Buy Now">Buy Now</option>
+                    <option value="Subscribe">Subscribe</option>
                     <option value="Get Quote">Get Quote</option>
-                    <option value="Learn More">Learn More</option>
-                    <option value="Download Resource">Download Resource</option>
                   </select>
                 </div>
               </div>
@@ -317,10 +316,8 @@ ${signature.replace(/^(Best regards|Sincerely|Thanks|Best|Regards|Cheers|Kind re
                   onChange={(e) => setTemplateData({...templateData, tone: e.target.value})}
                 >
                   <option value="professional">Professional</option>
-                  <option value="friendly">Friendly & Casual</option>
-                  <option value="authoritative">Authoritative</option>
-                  <option value="conversational">Conversational</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="direct">Direct & Concise</option>
                 </select>
               </div>
             </div>
