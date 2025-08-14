@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TemplateModal } from "./templates-modal";
 import { 
   Users, 
   Mail, 
@@ -25,12 +26,16 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-  const [activeView, setActiveView] = useState<'campaigns' | 'analytics' | 'settings'>('campaigns');
+  const [activeView, setActiveView] = useState<'campaigns' | 'templates' | 'analytics' | 'settings'>('campaigns');
   const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  
   interface Campaign {
     id: number;
     name: string;
     searchCriteria: string;
+    templateId: number;
     status: 'discovering' | 'active' | 'paused';
     leadsFound: number;
     emailsSent: number;
@@ -38,7 +43,28 @@ export default function Dashboard() {
     createdAt: string;
   }
   
+  interface Template {
+    id: number;
+    name: string;
+    description: string;
+    productService: string;
+    painPoints: string[];
+    valueProps: string[];
+    callToAction: string;
+    pricing?: string;
+    successStories?: string;
+    tone?: string;
+    emailDesign: 'plain' | 'branded' | 'custom';
+    customHTML?: string;
+    brandColors?: {
+      primary: string;
+      secondary: string;
+    };
+    logo?: string;
+  }
+  
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   
   // Real stats starting at 0
   const [stats] = useState({
@@ -49,8 +75,10 @@ export default function Dashboard() {
   });
 
   // Campaign creation form state
+  const [campaignStep, setCampaignStep] = useState<'template' | 'audience' | 'review'>('template');
   const [newCampaign, setNewCampaign] = useState({
     name: '',
+    templateId: null as number | null,
     searchMethod: 'ai_descriptive',
     searchQuery: '',
     // Filter fields
@@ -98,6 +126,7 @@ export default function Dashboard() {
       id: Date.now(),
       name: newCampaign.name || `Campaign ${campaigns.length + 1}`,
       searchCriteria,
+      templateId: newCampaign.templateId!,
       status: 'discovering' as const,
       leadsFound: 0,
       emailsSent: 0,
@@ -107,10 +136,12 @@ export default function Dashboard() {
     
     setCampaigns([...campaigns, campaign]);
     setShowCampaignModal(false);
+    setCampaignStep('template');
     
     // Reset form
     setNewCampaign({
       name: '',
+      templateId: null,
       searchMethod: 'ai_descriptive',
       searchQuery: '',
       location: '',
@@ -140,6 +171,14 @@ export default function Dashboard() {
                 }`}
               >
                 Campaigns
+              </button>
+              <button 
+                onClick={() => setActiveView('templates')}
+                className={`text-sm font-medium transition-colors ${
+                  activeView === 'templates' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Templates
               </button>
               {stats.totalLeads > 0 && (
                 <button 
@@ -307,6 +346,60 @@ export default function Dashboard() {
           </>
         )}
 
+        {activeView === 'templates' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Outreach Templates</h2>
+              <Button onClick={() => setShowTemplateModal(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Template
+              </Button>
+            </div>
+
+            {templates.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Mail className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No templates yet</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
+                    Create templates for your products and services to use in campaigns
+                  </p>
+                  <Button onClick={() => setShowTemplateModal(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Template
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {templates.map(template => (
+                  <Card key={template.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => {
+                    setEditingTemplate(template);
+                    setShowTemplateModal(true);
+                  }}>
+                    <CardHeader>
+                      <CardTitle className="text-base">{template.name}</CardTitle>
+                      <CardDescription className="text-xs line-clamp-2">{template.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">Design:</div>
+                          <span className="text-muted-foreground capitalize">{template.emailDesign}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">CTA:</div>
+                          <span className="text-muted-foreground">{template.callToAction}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeView === 'analytics' && (
           <div className="flex items-center justify-center py-12">
             <Card className="border-dashed">
@@ -343,30 +436,98 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Start New Campaign</CardTitle>
-                <CardDescription>Find and connect with your ideal customers</CardDescription>
+                <CardDescription>
+                  {campaignStep === 'template' && 'Step 1: Choose an outreach template'}
+                  {campaignStep === 'audience' && 'Step 2: Define your target audience'}
+                  {campaignStep === 'review' && 'Step 3: Review and launch'}
+                </CardDescription>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setShowCampaignModal(false)}
+                onClick={() => {
+                  setShowCampaignModal(false);
+                  setCampaignStep('template');
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Campaign Name */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Campaign Name</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 bg-background border rounded-md text-sm"
-                  placeholder="e.g., Q4 Restaurant Outreach"
-                  value={newCampaign.name}
-                  onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})}
-                />
-              </div>
+              {/* Step 1: Template Selection */}
+              {campaignStep === 'template' && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Select Outreach Template *</label>
+                    {templates.length === 0 ? (
+                      <Card className="border-dashed">
+                        <CardContent className="py-8 text-center">
+                          <p className="text-sm text-muted-foreground mb-4">
+                            You need to create a template first
+                          </p>
+                          <Button 
+                            onClick={() => {
+                              setShowCampaignModal(false);
+                              setShowTemplateModal(true);
+                              setCampaignStep('template');
+                            }}
+                            size="sm"
+                          >
+                            Create Template
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid gap-3">
+                        {templates.map(template => (
+                          <div
+                            key={template.id}
+                            onClick={() => setNewCampaign({...newCampaign, templateId: template.id})}
+                            className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                              newCampaign.templateId === template.id
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="font-medium text-sm">{template.name}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{template.description}</div>
+                            <div className="flex gap-4 mt-2 text-xs">
+                              <span>CTA: {template.callToAction}</span>
+                              <span>Style: {template.emailDesign}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-              {/* Search Method */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Campaign Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                      placeholder="e.g., Q4 Restaurant Outreach"
+                      value={newCampaign.name}
+                      onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => setCampaignStep('audience')}
+                      disabled={!newCampaign.templateId}
+                    >
+                      Next: Define Audience
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Audience Definition */}
+              {campaignStep === 'audience' && (
+                <>
+                  {/* Search Method */}
               <div>
                 <label className="text-sm font-medium mb-2 block">Search Method</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -510,31 +671,53 @@ export default function Dashboard() {
                 </label>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  onClick={handleCreateCampaign}
-                  disabled={
-                    newCampaign.searchMethod === 'ai_descriptive' 
-                      ? !newCampaign.searchQuery 
-                      : false // Filters can be empty (will search all)
-                  }
-                  className="flex-1"
-                >
-                  Start Campaign
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowCampaignModal(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex justify-between pt-4 border-t">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCampaignStep('template')}
+                    >
+                      Back
+                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowCampaignModal(false);
+                          setCampaignStep('template');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleCreateCampaign}
+                        disabled={
+                          newCampaign.searchMethod === 'ai_descriptive' 
+                            ? !newCampaign.searchQuery 
+                            : false // Filters can be empty (will search all)
+                        }
+                      >
+                        Launch Campaign
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
+
+      {/* Template Modal */}
+      <TemplateModal 
+        showModal={showTemplateModal}
+        setShowModal={setShowTemplateModal}
+        editingTemplate={editingTemplate}
+        setEditingTemplate={setEditingTemplate}
+        templates={templates}
+        setTemplates={setTemplates}
+      />
     </div>
   );
 }
