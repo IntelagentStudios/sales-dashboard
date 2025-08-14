@@ -238,7 +238,7 @@ const jobQueue = new JobQueueService();
 
 // Register default job processors
 jobQueue.registerProcessor('lead_enrichment', async (payload) => {
-  const { default: enrichmentService } = await import('./leadEnrichment.js');
+  const { default: enrichmentService } = await import('./leadEnrichmentService.js');
   await enrichmentService.enrichLead(payload.leadId);
 });
 
@@ -262,9 +262,67 @@ jobQueue.registerProcessor('email_sending', async (payload) => {
 });
 
 jobQueue.registerProcessor('website_analysis', async (payload) => {
+  const WebsiteScraperService = await import('./websiteScraper.js');
+  const scraper = new WebsiteScraperService.default();
+  const scrapedData = await scraper.scrapeWebsite(payload.websiteUrl);
+  await scraper.saveScrapedData(payload.leadId, scrapedData);
+});
+
+jobQueue.registerProcessor('discover_leads', async (payload) => {
   const { default: discoveryService } = await import('./leadDiscovery.js');
-  // Implement website analysis logic
-  console.log('Analyzing website for lead:', payload.leadId);
+  const { campaignId, searchCriteria, method } = payload;
+  
+  if (method === 'google_maps') {
+    await discoveryService.discoverFromGoogleMaps(searchCriteria);
+  } else if (method === 'directories') {
+    await discoveryService.scrapeBusinessDirectories(searchCriteria.directory, searchCriteria);
+  } else if (method === 'linkedin') {
+    await discoveryService.discoverFromLinkedIn(searchCriteria);
+  }
+});
+
+jobQueue.registerProcessor('find_emails', async (payload) => {
+  const EmailFinderService = await import('./emailFinder.js');
+  const emailFinder = new EmailFinderService.default();
+  await emailFinder.findEmailsForLead(payload.leadId);
+});
+
+jobQueue.registerProcessor('enrich_contact', async (payload) => {
+  const EmailFinderService = await import('./emailFinder.js');
+  const emailFinder = new EmailFinderService.default();
+  await emailFinder.enrichContact(payload.contactId);
+});
+
+jobQueue.registerProcessor('campaign_processing', async (payload) => {
+  const { campaignId } = payload;
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { leads: true }
+  });
+  
+  if (!campaign) return;
+  
+  // Queue lead discovery
+  await jobQueue.addJob('discover_leads', {
+    campaignId,
+    searchCriteria: campaign.searchCriteria,
+    method: campaign.searchMethod || 'google_maps'
+  }, { priority: 10 });
+  
+  // Process existing leads
+  for (const lead of campaign.leads) {
+    // Queue enrichment for each lead
+    await jobQueue.addJob('lead_enrichment', { leadId: lead.id }, {
+      priority: 5,
+      scheduledFor: new Date(Date.now() + 5000)
+    });
+    
+    // Queue email finding
+    await jobQueue.addJob('find_emails', { leadId: lead.id }, {
+      priority: 4,
+      scheduledFor: new Date(Date.now() + 10000)
+    });
+  }
 });
 
 export default jobQueue;
