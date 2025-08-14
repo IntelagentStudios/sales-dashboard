@@ -76,7 +76,7 @@ export default function Dashboard() {
   ];
 
   const handleCreateCampaign = () => {
-    const campaign = {
+    const campaign: Campaign = {
       id: Date.now(),
       name: newCampaign.name || `Campaign ${campaigns.length + 1}`,
       searchCriteria: newCampaign.searchMethod === 'google_maps' 
@@ -84,7 +84,7 @@ export default function Dashboard() {
         : newCampaign.searchMethod === 'industry'
         ? `${newCampaign.industry} businesses`
         : newCampaign.searchQuery,
-      status: 'discovering',
+      status: 'discovering' as const,
       leadsFound: 0,
       emailsSent: 0,
       responseRate: 0,
