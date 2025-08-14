@@ -25,6 +25,7 @@ RUN npm ci --only=production
 # Copy application code
 COPY api/ ./api/
 COPY scripts/ ./scripts/
+COPY prisma/ ./prisma/
 
 # Create necessary directories
 RUN mkdir -p logs
