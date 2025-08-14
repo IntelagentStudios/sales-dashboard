@@ -19,7 +19,9 @@ import {
   BarChart3,
   Sparkles,
   ChevronRight,
-  X
+  X,
+  Filter,
+  DollarSign
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -49,12 +51,14 @@ export default function Dashboard() {
   // Campaign creation form state
   const [newCampaign, setNewCampaign] = useState({
     name: '',
-    searchMethod: 'google_maps',
+    searchMethod: 'ai_descriptive',
     searchQuery: '',
+    // Filter fields
     location: '',
-    businessType: '',
+    radius: '10',
     industry: '',
-    radius: '5',
+    companySize: '',
+    revenueRange: '',
     excludePrevious: true
   });
 
@@ -76,14 +80,24 @@ export default function Dashboard() {
   ];
 
   const handleCreateCampaign = () => {
+    let searchCriteria = '';
+    
+    if (newCampaign.searchMethod === 'ai_descriptive') {
+      searchCriteria = newCampaign.searchQuery;
+    } else {
+      // Build filter criteria string
+      const filters = [];
+      if (newCampaign.industry) filters.push(newCampaign.industry);
+      if (newCampaign.companySize) filters.push(`${newCampaign.companySize} employees`);
+      if (newCampaign.location) filters.push(`${newCampaign.location} (${newCampaign.radius} miles)`);
+      if (newCampaign.revenueRange) filters.push(`Revenue: ${newCampaign.revenueRange}`);
+      searchCriteria = filters.length > 0 ? filters.join(', ') : 'All businesses';
+    }
+    
     const campaign: Campaign = {
       id: Date.now(),
       name: newCampaign.name || `Campaign ${campaigns.length + 1}`,
-      searchCriteria: newCampaign.searchMethod === 'google_maps' 
-        ? `${newCampaign.businessType} in ${newCampaign.location}`
-        : newCampaign.searchMethod === 'industry'
-        ? `${newCampaign.industry} businesses`
-        : newCampaign.searchQuery,
+      searchCriteria,
       status: 'discovering' as const,
       leadsFound: 0,
       emailsSent: 0,
@@ -97,12 +111,13 @@ export default function Dashboard() {
     // Reset form
     setNewCampaign({
       name: '',
-      searchMethod: 'google_maps',
+      searchMethod: 'ai_descriptive',
       searchQuery: '',
       location: '',
-      businessType: '',
+      radius: '10',
       industry: '',
-      radius: '5',
+      companySize: '',
+      revenueRange: '',
       excludePrevious: true
     });
   };
@@ -354,116 +369,131 @@ export default function Dashboard() {
               {/* Search Method */}
               <div>
                 <label className="text-sm font-medium mb-2 block">Search Method</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setNewCampaign({...newCampaign, searchMethod: 'google_maps'})}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      newCampaign.searchMethod === 'google_maps' 
+                    onClick={() => setNewCampaign({...newCampaign, searchMethod: 'ai_descriptive'})}
+                    className={`p-4 rounded-lg border text-center transition-colors ${
+                      newCampaign.searchMethod === 'ai_descriptive' 
                         ? 'border-primary bg-primary/10' 
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
-                    <MapPin className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-sm font-medium">Google Maps</div>
-                    <div className="text-xs text-muted-foreground">Location-based</div>
+                    <Sparkles className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">AI Descriptive</div>
+                    <div className="text-xs text-muted-foreground mt-1">Describe your ideal customer in natural language</div>
                   </button>
                   
                   <button
-                    onClick={() => setNewCampaign({...newCampaign, searchMethod: 'industry'})}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      newCampaign.searchMethod === 'industry' 
+                    onClick={() => setNewCampaign({...newCampaign, searchMethod: 'filters'})}
+                    className={`p-4 rounded-lg border text-center transition-colors ${
+                      newCampaign.searchMethod === 'filters' 
                         ? 'border-primary bg-primary/10' 
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
-                    <Building2 className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-sm font-medium">Industry</div>
-                    <div className="text-xs text-muted-foreground">By category</div>
-                  </button>
-                  
-                  <button
-                    onClick={() => setNewCampaign({...newCampaign, searchMethod: 'custom'})}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      newCampaign.searchMethod === 'custom' 
-                        ? 'border-primary bg-primary/10' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <Search className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-sm font-medium">Custom AI</div>
-                    <div className="text-xs text-muted-foreground">Natural language</div>
+                    <Filter className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">Search by Filters</div>
+                    <div className="text-xs text-muted-foreground mt-1">Use specific criteria like location, industry, size</div>
                   </button>
                 </div>
               </div>
 
               {/* Search Parameters based on method */}
-              {newCampaign.searchMethod === 'google_maps' && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Business Type</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 bg-background border rounded-md text-sm"
-                      placeholder="e.g., dentist, restaurant, gym"
-                      value={newCampaign.businessType}
-                      onChange={(e) => setNewCampaign({...newCampaign, businessType: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Location</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 bg-background border rounded-md text-sm"
-                      placeholder="e.g., Austin, TX or 78701"
-                      value={newCampaign.location}
-                      onChange={(e) => setNewCampaign({...newCampaign, location: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Search Radius</label>
-                    <select 
-                      className="w-full px-3 py-2 bg-background border rounded-md text-sm"
-                      value={newCampaign.radius}
-                      onChange={(e) => setNewCampaign({...newCampaign, radius: e.target.value})}
-                    >
-                      <option value="1">1 mile</option>
-                      <option value="5">5 miles</option>
-                      <option value="10">10 miles</option>
-                      <option value="25">25 miles</option>
-                      <option value="50">50 miles</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {newCampaign.searchMethod === 'industry' && (
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Select Industry</label>
-                  <select 
-                    className="w-full px-3 py-2 bg-background border rounded-md text-sm"
-                    value={newCampaign.industry}
-                    onChange={(e) => setNewCampaign({...newCampaign, industry: e.target.value})}
-                  >
-                    <option value="">Choose an industry...</option>
-                    {industries.map(industry => (
-                      <option key={industry} value={industry}>{industry}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {newCampaign.searchMethod === 'custom' && (
+              {newCampaign.searchMethod === 'ai_descriptive' && (
                 <div>
                   <label className="text-sm font-medium mb-2 block">Describe Your Ideal Customers</label>
                   <textarea
-                    className="w-full px-3 py-2 bg-background border rounded-md text-sm min-h-[100px]"
-                    placeholder="e.g., Find all eco-friendly restaurants in London with outdoor seating and websites mentioning vegan options"
+                    className="w-full px-3 py-2 bg-background border rounded-md text-sm min-h-[120px]"
+                    placeholder="e.g., Find tech startups in Silicon Valley with 10-50 employees that have raised Series A funding in the last 2 years and are actively hiring engineers"
                     value={newCampaign.searchQuery}
                     onChange={(e) => setNewCampaign({...newCampaign, searchQuery: e.target.value})}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    AI will interpret your request and find matching businesses
+                    AI will intelligently interpret your description and find matching businesses
                   </p>
+                </div>
+              )}
+
+              {newCampaign.searchMethod === 'filters' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Industry</label>
+                      <select 
+                        className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                        value={newCampaign.industry}
+                        onChange={(e) => setNewCampaign({...newCampaign, industry: e.target.value})}
+                      >
+                        <option value="">All industries</option>
+                        {industries.map(industry => (
+                          <option key={industry} value={industry}>{industry}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Company Size</label>
+                      <select 
+                        className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                        value={newCampaign.companySize}
+                        onChange={(e) => setNewCampaign({...newCampaign, companySize: e.target.value})}
+                      >
+                        <option value="">Any size</option>
+                        <option value="1-10">1-10 employees</option>
+                        <option value="11-50">11-50 employees</option>
+                        <option value="51-200">51-200 employees</option>
+                        <option value="201-500">201-500 employees</option>
+                        <option value="501-1000">501-1000 employees</option>
+                        <option value="1000+">1000+ employees</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Location</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                        placeholder="e.g., New York, NY or 10001"
+                        value={newCampaign.location}
+                        onChange={(e) => setNewCampaign({...newCampaign, location: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Search Radius</label>
+                      <select 
+                        className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                        value={newCampaign.radius}
+                        onChange={(e) => setNewCampaign({...newCampaign, radius: e.target.value})}
+                      >
+                        <option value="5">5 miles</option>
+                        <option value="10">10 miles</option>
+                        <option value="25">25 miles</option>
+                        <option value="50">50 miles</option>
+                        <option value="100">100 miles</option>
+                        <option value="nationwide">Nationwide</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Revenue Range</label>
+                    <select 
+                      className="w-full px-3 py-2 bg-background border rounded-md text-sm"
+                      value={newCampaign.revenueRange}
+                      onChange={(e) => setNewCampaign({...newCampaign, revenueRange: e.target.value})}
+                    >
+                      <option value="">Any revenue</option>
+                      <option value="0-1M">$0 - $1M</option>
+                      <option value="1M-5M">$1M - $5M</option>
+                      <option value="5M-10M">$5M - $10M</option>
+                      <option value="10M-50M">$10M - $50M</option>
+                      <option value="50M-100M">$50M - $100M</option>
+                      <option value="100M+">$100M+</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -485,9 +515,9 @@ export default function Dashboard() {
                 <Button 
                   onClick={handleCreateCampaign}
                   disabled={
-                    (newCampaign.searchMethod === 'google_maps' && (!newCampaign.businessType || !newCampaign.location)) ||
-                    (newCampaign.searchMethod === 'industry' && !newCampaign.industry) ||
-                    (newCampaign.searchMethod === 'custom' && !newCampaign.searchQuery)
+                    newCampaign.searchMethod === 'ai_descriptive' 
+                      ? !newCampaign.searchQuery 
+                      : false // Filters can be empty (will search all)
                   }
                   className="flex-1"
                 >
