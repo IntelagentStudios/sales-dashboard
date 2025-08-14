@@ -13,7 +13,10 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run dev:*)",
       "Bash(npx vercel:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],
