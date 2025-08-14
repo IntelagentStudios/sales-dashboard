@@ -1,5 +1,4 @@
-import { Anthropic } from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { query } from '../config/database.js';
@@ -7,15 +6,12 @@ import { cache } from '../config/redis.js';
 
 class EmailGenerationService {
   constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    });
-    
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+    this.groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
     });
 
-    this.aiModel = process.env.AI_MODEL || 'claude-3-opus';
+    // Using Groq's fast models - llama-3.3-70b or mixtral-8x7b
+    this.aiModel = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
     
     this.personalzationDepths = {
       heavy: { references: 3, specificity: 'high' },
@@ -461,37 +457,23 @@ ${this.buildEmailPrompt(personalizationData, campaign.templates[0], 'medium')}`;
 
   async callAI(prompt, type = 'email') {
     try {
-      if (this.aiModel.includes('claude')) {
-        const response = await this.anthropic.messages.create({
-          model: 'claude-3-opus-20240229',
-          max_tokens: type === 'email' ? 500 : 1000,
-          temperature: type === 'email' ? 0.7 : 0.3,
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
-        });
-        
-        return response.content[0].text;
-      } else {
-        const response = await this.openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: type === 'email' ? 500 : 1000,
-          temperature: type === 'email' ? 0.7 : 0.3
-        });
-        
-        return response.choices[0].message.content;
-      }
+      const response = await this.groq.chat.completions.create({
+        model: this.aiModel,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: type === 'email' ? 500 : 1000,
+        temperature: type === 'email' ? 0.7 : 0.3,
+        // Groq is super fast - no need for streaming
+        stream: false
+      });
+      
+      return response.choices[0]?.message?.content || '';
     } catch (error) {
-      console.error('AI API error:', error);
+      console.error('Groq API error:', error);
       throw error;
     }
   }

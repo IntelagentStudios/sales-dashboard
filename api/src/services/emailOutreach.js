@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import sgMail from '@sendgrid/mail';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
@@ -18,6 +19,17 @@ class EmailOutreachService {
   initializeProviders() {
     const providers = {};
 
+    // Resend as primary provider (fastest and most reliable)
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      providers.resend = {
+        type: 'resend',
+        client: resend,
+        send: this.sendViaResend.bind(this)
+      };
+    }
+
+    // Keep SendGrid as backup option
     if (process.env.SENDGRID_API_KEY) {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       providers.sendgrid = {
@@ -226,6 +238,37 @@ class EmailOutreachService {
     }
 
     return this.providers[availableProviders[0]];
+  }
+
+  async sendViaResend(email, emailAccount) {
+    try {
+      const response = await this.providers.resend.client.emails.send({
+        from: `${email.from.name} <${email.from.email}>`,
+        to: [email.to],
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+        headers: {
+          'X-Campaign-ID': email.metadata?.campaignId || '',
+          'X-Lead-ID': email.metadata?.leadId || '',
+          'X-Contact-ID': email.metadata?.contactId || '',
+          ...email.headers
+        },
+        tags: [
+          { name: 'campaign', value: email.metadata?.campaignId || 'default' },
+          { name: 'lead', value: email.metadata?.leadId || 'unknown' }
+        ]
+      });
+
+      return {
+        messageId: response.data?.id || response.id,
+        provider: 'resend',
+        response: response.data || response
+      };
+    } catch (error) {
+      console.error('Resend API error:', error);
+      throw error;
+    }
   }
 
   async sendViaSendGrid(email, emailAccount) {
