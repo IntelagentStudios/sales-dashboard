@@ -1,52 +1,41 @@
-FROM node:20-alpine
+# Build stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-# Install dependencies for Puppeteer
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
-
-# Tell Puppeteer to use installed Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
-    NODE_ENV=production
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including dev) for build
+RUN npm ci
 
-# Copy Prisma schema first for generating client
-COPY prisma ./prisma
+# Copy source code
+COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Build the application
+RUN npm run build
 
-# Copy application code
-COPY api/ ./api/
-COPY scripts/ ./scripts/
+# Production stage
+FROM node:20-alpine AS runner
 
-# Create necessary directories
-RUN mkdir -p logs
+WORKDIR /app
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
+ENV NODE_ENV=production
 
-# Run as non-root user
+# Create a non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-USER nodejs
+    adduser -S nextjs -u 1001
 
-# Expose port (Railway will override with PORT env var)
+# Copy the standalone folder from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+USER nextjs
+
 EXPOSE 3000
 
-# Start the application (using simplified server for now)
-CMD ["node", "api/src/server.js"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
