@@ -1,7 +1,6 @@
 # Nixpacks configuration for Next.js dashboard
 
-[providers]
-nixpkgs = ["nodejs_20"]
+providers = ["node"]
 
 [phases.setup]
 nixPkgs = ["nodejs_20", "npm-9_x"]
