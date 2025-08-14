@@ -1,5 +1,8 @@
 # Nixpacks configuration for Next.js dashboard
 
+[providers]
+nixpkgs = ["nodejs_20"]
+
 [phases.setup]
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
@@ -15,3 +18,4 @@ cmd = "npm run start"
 [variables]
 NODE_ENV = "production"
 NEXT_TELEMETRY_DISABLED = "1"
+NIXPACKS_NO_CACHE = "1"
