@@ -6,12 +6,12 @@
   "scripts": {
     "start": "node start-services.js",
     "start:api": "cd api && npm start",
-    "start:enrichment": "cd \"Intelagent Enrichment/unified-enrichment-service\" && npm start",
+    "start:enrichment": "cd \"Intelagent Enrichment\" && npm start",
     "start:dashboard": "cd dashboard && npm run dev",
     "dev": "concurrently \"npm run start:enrichment\" \"npm run start:api\" \"npm run start:dashboard\"",
-    "install:all": "npm install && cd api && npm install && cd ../dashboard && npm install && cd \"../Intelagent Enrichment/unified-enrichment-service\" && npm install",
+    "install:all": "npm install && cd api && npm install && cd ../dashboard && npm install && cd \"../Intelagent Enrichment\" && npm install",
     "setup": "npm run install:all && npm run prisma:setup",
-    "prisma:setup": "cd api && npx prisma generate && npx prisma migrate dev && cd \"../Intelagent Enrichment/unified-enrichment-service\" && npx prisma generate"
+    "prisma:setup": "cd api && npx prisma generate && npx prisma migrate dev && cd \"../Intelagent Enrichment\" && npx prisma generate"
   },
   "dependencies": {
     "concurrently": "^8.2.2"

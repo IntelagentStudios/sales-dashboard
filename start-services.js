@@ -17,7 +17,7 @@ console.log('🚀 Starting Intelagent Sales Agent System...\n');
 // Start Intelagent Enrichment Service
 console.log('📊 Starting Intelagent Enrichment Service...');
 const enrichmentService = spawn('npm', ['start'], {
-  cwd: join(__dirname, 'Intelagent Enrichment', 'unified-enrichment-service'),
+  cwd: join(__dirname, 'Intelagent Enrichment'),
   shell: true,
   stdio: 'pipe'
 });
