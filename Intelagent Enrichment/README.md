@@ -60,8 +60,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/sales_agent?schema=sales
 PORT=3001
 NODE_ENV=development
 
-# Redis Configuration (for queue management)
-REDIS_URL=redis://localhost:6379
+# No Redis required - uses database for job queue
 
 # Rate Limiting
 MAX_REQUESTS_PER_SECOND=2
@@ -250,7 +249,7 @@ const companyData = await enricher.enrichCompany('example.com');
 ### Railway Deployment
 
 1. Create a new Railway project
-2. Add PostgreSQL and Redis services
+2. Add PostgreSQL service (no Redis needed)
 3. Deploy the service:
 
 ```bash
@@ -319,9 +318,10 @@ curl -X POST http://localhost:3001/api/enrich/company \
    - Verify DATABASE_URL in .env
    - Run `npx prisma migrate dev` to ensure schema is updated
 
-3. **Redis connection errors**
-   - Ensure Redis is running
-   - Check REDIS_URL in .env
+3. **Job queue not processing**
+   - Check database connection
+   - Verify EnrichmentJob table exists in database
+   - Check logs for processing errors
 
 ## License
 

@@ -149,8 +149,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/sales_agent
 PORT=3001
 NODE_ENV=development
 
-# Redis (for queue management)
-REDIS_URL=redis://localhost:6379
+# No Redis required - uses database for job queue
 
 # Rate Limiting
 MAX_REQUESTS_PER_SECOND=2
