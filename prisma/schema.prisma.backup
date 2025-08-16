@@ -6,11 +6,73 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["sales_agent"]
+  schemas  = ["public", "sales_agent"]
 }
 
-// ==================== SALES_AGENT SCHEMA ====================
-// All tables for the sales agent system in isolated schema
+// ==================== PUBLIC SCHEMA (Existing tables from Service 1) ====================
+model License {
+  id             String   @id @default(uuid())
+  domain         String   @unique
+  licenseKey     String   @unique @map("license_key")
+  status         String   @default("active")
+  plan           String   @default("free")
+  activatedAt    DateTime @default(now()) @map("activated_at")
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("licenses")
+  @@schema("public")
+}
+
+model ChatbotLog {
+  id          String   @id @default(uuid())
+  domain      String
+  sessionId   String   @map("session_id")
+  message     String
+  response    String?
+  timestamp   DateTime @default(now())
+  metadata    Json?
+
+  @@map("chatbot_logs")
+  @@schema("public")
+}
+
+model SharedItem {
+  id          String   @id @default(uuid())
+  domain      String
+  itemType    String   @map("item_type")
+  itemData    Json     @map("item_data")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("shared_items")
+  @@schema("public")
+}
+
+model DomainLicense {
+  id          String   @id @default(uuid())
+  domain      String   @unique
+  licenseId   String   @map("license_id")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("domain_licenses")
+  @@schema("public")
+}
+
+model SiteKey {
+  id          String   @id @default(uuid())
+  domain      String   @unique
+  apiKey      String   @unique @map("api_key")
+  secretKey   String   @map("secret_key")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("site_keys")
+  @@schema("public")
+}
+
+// ==================== SALES_AGENT SCHEMA (New tables for this service) ====================
 
 model Lead {
   id                String      @id @default(uuid())

@@ -238,8 +238,8 @@ const jobQueue = new JobQueueService();
 
 // Register default job processors
 jobQueue.registerProcessor('lead_enrichment', async (payload) => {
-  const { default: enrichmentService } = await import('./leadEnrichmentService.js');
-  await enrichmentService.enrichLead(payload.leadId);
+  const { default: intelagentEnrichment } = await import('./intelagentEnrichment.js');
+  await intelagentEnrichment.enrichLead(payload.leadId);
 });
 
 jobQueue.registerProcessor('lead_scoring', async (payload) => {
@@ -262,10 +262,8 @@ jobQueue.registerProcessor('email_sending', async (payload) => {
 });
 
 jobQueue.registerProcessor('website_analysis', async (payload) => {
-  const WebsiteScraperService = await import('./websiteScraper.js');
-  const scraper = new WebsiteScraperService.default();
-  const scrapedData = await scraper.scrapeWebsite(payload.websiteUrl);
-  await scraper.saveScrapedData(payload.leadId, scrapedData);
+  const { default: intelagentEnrichment } = await import('./intelagentEnrichment.js');
+  await intelagentEnrichment.scrapeWebsite(payload.leadId);
 });
 
 jobQueue.registerProcessor('discover_leads', async (payload) => {
@@ -282,15 +280,14 @@ jobQueue.registerProcessor('discover_leads', async (payload) => {
 });
 
 jobQueue.registerProcessor('find_emails', async (payload) => {
-  const EmailFinderService = await import('./emailFinder.js');
-  const emailFinder = new EmailFinderService.default();
-  await emailFinder.findEmailsForLead(payload.leadId);
+  const { default: intelagentEnrichment } = await import('./intelagentEnrichment.js');
+  await intelagentEnrichment.findEmailsForLead(payload.leadId);
 });
 
 jobQueue.registerProcessor('enrich_contact', async (payload) => {
-  const EmailFinderService = await import('./emailFinder.js');
-  const emailFinder = new EmailFinderService.default();
-  await emailFinder.enrichContact(payload.contactId);
+  // Contact enrichment now handled by Intelagent Enrichment during lead enrichment
+  const { default: intelagentEnrichment } = await import('./intelagentEnrichment.js');
+  await intelagentEnrichment.enrichLead(payload.leadId);
 });
 
 jobQueue.registerProcessor('campaign_processing', async (payload) => {

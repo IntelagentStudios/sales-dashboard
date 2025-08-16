@@ -23,7 +23,8 @@
       "Bash(git ls-tree:*)",
       "Bash(curl:*)",
       "Bash(git fetch:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": [],

@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model EnrichmentCache {
+  id            String   @id @default(uuid())
+  domain        String   @unique
+  scrapedData   Json?
+  emails        Json?
+  enrichedData  Json?
+  lastUpdated   DateTime @updatedAt
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  
+  @@index([domain])
+  @@index([expiresAt])
+  @@schema("sales_agent")
+}
+
+model EmailValidation {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  isValid      Boolean
+  mxRecords    Json?
+  confidence   Float
+  lastChecked  DateTime @default(now())
+  source       String?
+  domain       String?
+  
+  @@index([email])
+  @@index([domain])
+  @@schema("sales_agent")
+}
+
+model EnrichmentJob {
+  id            String   @id @default(uuid())
+  domain        String
+  status        String   @default("pending") // pending, processing, completed, failed
+  type          String   // full, emails, scrape, data
+  result        Json?
+  error         String?
+  attempts      Int      @default(0)
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  @@index([status])
+  @@index([domain])
+  @@schema("sales_agent")
+}
+
+model ScrapedPage {
+  id            String   @id @default(uuid())
+  domain        String
+  url           String
+  path          String
+  content       String?  @db.Text
+  metadata      Json?
+  statusCode    Int?
+  scrapedAt     DateTime @default(now())
+  
+  @@unique([domain, path])
+  @@index([domain])
+  @@schema("sales_agent")
+}
